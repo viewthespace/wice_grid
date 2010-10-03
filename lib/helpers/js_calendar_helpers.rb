@@ -9,32 +9,15 @@ module Wice
     # Jquery
 
     def date_calendar_jquery(initial_date, opts = {}, html_opts = {})  #:nodoc:
-      date_format = Wice::Defaults::DATE_FORMAT
+      select_date_datetime_common_jquery(initial_date, false, opts, html_opts)
+    end
 
-      options, name, date_string, dom_id, datepicker_placeholder_id, date_span_id =
-        prepare_data_for_calendar(opts, date_format, initial_date)
-
-      remove_date_function = %! $('##{date_span_id}').html(''); $('##{dom_id}')[0].value = ''; !
-
-      date_picker =
-
-        hidden_field_tag(name, date_string, :id => dom_id) + ' ' +
-
-        link_to_function(
-          content_tag(:span, date_string, :id => date_span_id),
-          remove_date_function,
-          :class => 'date_label',
-          :title => ::Wice::WiceGridNlMessageProvider.get_message(:DATE_STRING_TOOLTIP))
-
-      html = "<span id=\"#{datepicker_placeholder_id}\">#{date_picker}</span>"
-
-      javascript = calendar_constructor_jquery(dom_id, Wice::Defaults::DATE_FORMAT_JQUERY,
-        date_span_id, opts[:fire_event], html_opts[:title], datepicker_placeholder_id)
-
-      [html, javascript]
+    def datetime_calendar_jquery(initial_date, opts = {}, html_opts = {})  #:nodoc:
+      select_date_datetime_common_jquery(initial_date, true, opts, html_opts)
     end
 
     # Prototype
+
     def date_calendar_prototype(initial_date, opts = {}, html_opts = {})  #:nodoc:
       select_date_datetime_common_prototype(initial_date, opts, html_opts, false, Wice::Defaults::DATE_FORMAT)
     end
@@ -61,15 +44,19 @@ module Wice
 
     # jquery
 
-    def calendar_constructor_jquery(dom_id, date_format, date_span_id, fireEvent, title, datepicker_placeholder_id)
+    def calendar_constructor_jquery(dom_id, with_time, date_format, date_span_id, 
+        fireEvent, title, datepicker_placeholder_id) #:nodoc:
 
-      javascript  =  %| $( "##{dom_id}" ).datepicker({\n|
+      picker = with_time ? 'datetimepicker' : 'datepicker'
+      javascript  =  %| $( "##{dom_id}" ).#{picker}({\n|
       javascript <<  %|   firstDay: 1,\n|
       javascript <<  %|   showOn: "button",\n|
       javascript <<  %|   dateFormat: "#{date_format}",\n|
       javascript <<  %|   buttonImage: "#{::Wice::Defaults::CALENDAR_ICON}",\n|
       javascript <<  %|   buttonImageOnly: true,\n|
       javascript <<  %|   buttonText: "#{title}",\n|
+      javascript <<  %|   changeMonth: true,\n|
+      javascript <<  %|   changeYear: true,\n|
       javascript <<  %|   onSelect: function(dateText, inst) {\n|
       javascript <<  %|     $("##{date_span_id}").html(dateText);\n|
       if fireEvent
@@ -81,12 +68,15 @@ module Wice
       lang = Object.const_defined?(:I18n) ? I18n.locale : nil
 
       if lang
-        javascript <<  %| if ($.datepicker.regional['#{lang}']){\n|
-        javascript <<  %|   var regionalOptions = $.datepicker.regional['#{lang}']  ;\n|
-        javascript <<  %|   delete regionalOptions.dateFormat ;\n|
-        javascript <<  %|   delete regionalOptions.firstDate ;\n|
-        javascript <<  %|   $( "##{dom_id}" ).datepicker( "option", $.datepicker.regional['#{lang}'] );\n|
-        javascript <<  %| }\n|
+        javascript <<  %| datepickerRegionalOptions = $.datepicker.regional['#{lang}']  ;\n|
+        if with_time
+          javascript <<  %| if (! datepickerRegionalOptions) datepickerRegionalOptions = $.datetimepicker.regional['#{lang}']  ;\n|
+        end
+        javascript <<  %| delete datepickerRegionalOptions.dateFormat ;\n|
+        javascript <<  %| delete datepickerRegionalOptions.firstDate ;\n|
+        @datepicker_regional_options_set = true
+
+        javascript <<  %| $( "##{dom_id}" ).#{picker}( "option", datepickerRegionalOptions );\n|
       end
 
       javascript += %| $('##{datepicker_placeholder_id} .ui-datepicker-trigger').addClass('clickable');\n|
@@ -94,17 +84,47 @@ module Wice
       javascript
     end
 
-    # prortotype
 
-    def calendar_constructor_prototype(popup_trigger_icon_id, dom_id, date_format, date_span_id, with_time, fireEvent)
+    def select_date_datetime_common_jquery(initial_date, with_time, opts = {}, html_opts = {})  #:nodoc:
+
+      date_format, date_format_jquery = if with_time
+        [Wice::Defaults::DATETIME_FORMAT, Wice::Defaults::DATETIME_FORMAT_JQUERY]
+      else
+        [Wice::Defaults::DATE_FORMAT, Wice::Defaults::DATE_FORMAT_JQUERY]
+      end
+
+      options, name, date_string, dom_id, datepicker_placeholder_id, date_span_id =
+        prepare_data_for_calendar(opts, date_format, initial_date)
+
+      remove_date_function = %! $('##{date_span_id}').html(''); $('##{dom_id}')[0].value = ''; !
+
+      date_picker =
+
+        hidden_field_tag(name, date_string, :id => dom_id) + ' ' +
+
+        link_to_function(
+          content_tag(:span, date_string, :id => date_span_id),
+          remove_date_function,
+          :class => 'date_label',
+          :title => ::Wice::WiceGridNlMessageProvider.get_message(:DATE_STRING_TOOLTIP))
+
+      html = "<span id=\"#{datepicker_placeholder_id}\">#{date_picker}</span>"
+
+      javascript = calendar_constructor_jquery(dom_id, with_time, date_format_jquery,
+        date_span_id, opts[:fire_event], html_opts[:title], datepicker_placeholder_id)
+
+      [html, javascript]
+    end
+
+
+    # Prototype
+
+    def calendar_constructor_prototype(popup_trigger_icon_id, dom_id, date_format, date_span_id, with_time, fireEvent)  #:nodoc:
 
       javascript = ''
 
-      unless @_wg_date_picker_language_initialized
-        lang = Object.const_defined?(:I18n) ? I18n.locale : nil
-        javascript << %|    Calendar.language = '#{lang}';\n| unless lang.blank?
-        @_wg_date_picker_language_initialized = true
-      end
+      lang = Object.const_defined?(:I18n) ? I18n.locale : nil
+      javascript << %|    Calendar.language = '#{lang}';\n| unless lang.blank?
 
       javascript <<  %|    new Calendar({\n |
       javascript << %|      popupTriggerElement : "#{popup_trigger_icon_id}",\n |
