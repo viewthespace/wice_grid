@@ -1,5 +1,4 @@
 # encoding: UTF-8
-require 'will_paginate.rb'
 require 'wice_grid_misc.rb'
 require 'wice_grid_core_ext.rb'
 require 'grid_renderer.rb'
@@ -17,6 +16,7 @@ require 'js_adaptors/js_adaptor.rb'
 require 'js_adaptors/jquery_adaptor.rb'
 require 'js_adaptors/prototype_adaptor.rb'
 require 'view_columns.rb'
+require 'kaminari.rb'
 
 
 
@@ -48,7 +48,8 @@ module Wice
       end
 
       ActiveSupport.on_load :action_view do
-        Wice::GridRenderer.send(:include, ::WillPaginate::ViewHelpers)
+        #Wice::GridRenderer.send(:include, ::WillPaginate::ViewHelpers)
+        Wice::GridRenderer.send(:include, Kaminari::ActionViewExtension)
         require 'wice_grid_serialized_query.rb'
       end
     end
@@ -290,7 +291,8 @@ module Wice
         @resultset = if self.output_csv?
           @relation.find(:all, @ar_options)
         else
-          @relation.paginate(@ar_options)
+          #@relation.paginate(@ar_options)
+          @relation.page(@ar_options[:page]).per(@ar_options[:per_page])
         end
       end
       invoke_resultset_callbacks

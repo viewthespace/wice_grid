@@ -717,12 +717,13 @@ module Wice
 
       html, js = pagination_info(grid, allow_showing_all_records)
 
-      [will_paginate(grid.resultset,
-        :previous_label => WiceGridNlMessageProvider.get_message(:PREVIOUS_LABEL),
-        :next_label     => WiceGridNlMessageProvider.get_message(:NEXT_LABEL),
-        :param_name     => "#{grid.name}[page]",
-        :params         => extra_request_parameters).to_s +
-        (' <div class="pagination_status">' + html + '</div>').html_safe_if_necessary, js]
+      #[will_paginate(grid.resultset,
+      #  :previous_label => WiceGridNlMessageProvider.get_message(:PREVIOUS_LABEL),
+      #  :next_label     => WiceGridNlMessageProvider.get_message(:NEXT_LABEL),
+      #  :param_name     => "#{grid.name}[page]",
+      #  :params         => extra_request_parameters).to_s +
+      #  (' <div class="pagination_status">' + html + '</div>').html_safe_if_necessary, js]
+      [ paginate(grid.resultset) ]
     end
 
 
@@ -757,17 +758,19 @@ module Wice
     def pagination_info(grid, allow_showing_all_records)  #:nodoc:
       collection = grid.resultset
 
-      collection_total_entries = collection.total_entries
+      #collection_total_entries = collection.total_entries
+      collection_total_entries = collection.total_count
       collection_total_entries_str = collection_total_entries.to_s
       parameters = grid.get_state_as_parameter_value_pairs
 
       js = ''
-      html = if (collection.total_pages < 2 && collection.length == 0)
+      #html = if (collection.total_pages < 2 && collection.length == 0)
+      html = if (collection.num_pages< 2 && collection.length == 0)
         '0'
       else
         parameters << ["#{grid.name}[pp]", collection_total_entries_str]
 
-        "#{collection.offset + 1}-#{collection.offset + collection.length} / #{collection_total_entries_str} " +
+        "#{collection.offset_value + 1}-#{collection.offset_value + collection.length} / #{collection_total_entries_str} " +
           if (! allow_showing_all_records) || collection_total_entries <= collection.length
             ''
           else
